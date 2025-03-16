@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS cats (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    birth_date DATE NOT NULL,
+    breed VARCHAR(128) NOT NULL,
+    colour VARCHAR(128) NOT NULL
+);
+
+listCats:
+SELECT * FROM cats;
+
+getCat:
+SELECT * FROM cats WHERE id = ?;
+
+deleteCat:
+DELETE FROM cats WHERE id = ?;
+
+createCat:
+INSERT INTO cats VALUES (?, ?, ?, ?, ?, ?);

@@ -7,23 +7,22 @@ import kotlin.random.Random
 private const val UUID_LENGTH = 40
 
 class CatService(
+    private val cats: CatsRepo,
     private val clock: Clock,
     private val random: Random
 ) {
 
-    private val cats = mutableListOf<Cat>()
-
     fun getCat(id: UUID): Cat? {
-        return cats.find { it.id == id }
+        return cats.getCat(id)
     }
 
     fun listCats(): List<Cat> {
-        return cats.toList()
+        return cats.listCats()
     }
 
     fun deleteCat(id: UUID): Cat? {
-        val cat = cats.find { it.id == id }
-        if (!cats.remove(cat)) return null
+        val cat = cats.getCat(id) ?: return null
+        cats.deleteCat(id)
         return cat
     }
 
@@ -36,7 +35,7 @@ class CatService(
             breed = data.breed,
             colour = data.colour
         )
-        cats += cat
+        cats.saveCat(cat)
         return cat
     }
 }

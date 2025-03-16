@@ -22,15 +22,19 @@ import java.time.ZoneOffset
 import java.util.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
+import org.http4k.config.Environment
 
 private const val ULTIMATE_NUMBER = 42
 
 @ExtendWith(JsonApprovalTest::class)
 class CatsTest {
 
-    private val service = CatService(
-        Clock.fixed(Instant.parse("2025-03-25T12:00:00Z"), ZoneOffset.UTC),
-        Random(ULTIMATE_NUMBER)
+    private val service = createApp(
+        env = Environment.defaults(
+            dbUrl of "jdbc:h2:mem:${UUID.randomUUID()};DB_CLOSE_DELAY=-1"
+        ),
+        clock = Clock.fixed(Instant.parse("2025-03-25T12:00:00Z"), ZoneOffset.UTC),
+        random = Random(ULTIMATE_NUMBER)
     )
 
     private val api = service.toApi()
