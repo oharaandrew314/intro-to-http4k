@@ -22,10 +22,12 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import org.http4k.config.Environment
 import org.http4k.core.*
+import org.http4k.lens.bearerAuth
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
 
+private const val KEY_SIZE = 2048
 private const val ULTIMATE_NUMBER = 42
 private const val ISSUER = "test_idp"
 private const val CLIENT_ID = "test_client"
@@ -34,7 +36,7 @@ private const val CLIENT_ID = "test_client"
 class CatsTest {
 
     private val algorithm = KeyPairGenerator.getInstance("RSA")
-        .apply { initialize(2048) }
+        .apply { initialize(KEY_SIZE) }
         .generateKeyPair()
         .let { Algorithm.RSA256(it.public as RSAPublicKey, it.private as RSAPrivateKey) }
 
@@ -177,7 +179,7 @@ class CatsTest {
     @Test
     fun `delete cat - invalid token`() {
         Request(Method.DELETE, "/v1/cats/c737486a-2988-472a-b580-7bb3e7adfd17")
-            .header("Authorization", "Bearer lol")
+            .bearerAuth("lol")
             .let(api)
             .shouldHaveStatus(Status.UNAUTHORIZED)
     }
@@ -185,7 +187,7 @@ class CatsTest {
     @Test
     fun `delete cat - forged token`() {
         val newAlg = KeyPairGenerator.getInstance("RSA")
-            .apply { initialize(2048) }
+            .apply { initialize(KEY_SIZE) }
             .generateKeyPair()
             .let { Algorithm.RSA256(it.public as RSAPublicKey, it.private as RSAPrivateKey) }
 
@@ -211,7 +213,7 @@ class CatsTest {
         ))
 
         Request(Method.DELETE, "/v1/cats/${cat2.id}")
-            .header("Authorization", "Bearer ${createToken("user1")}")
+            .bearerAuth(createToken("user1"))
             .let(api)
             .also { approver.assertApproved(it, Status.OK) }
 
