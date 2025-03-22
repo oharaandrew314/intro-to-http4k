@@ -1,32 +1,26 @@
 package dev.andrewohara.cats
 
-import com.nimbusds.jose.proc.BadJOSEException
-import com.nimbusds.jose.proc.JWSKeySelector
-import com.nimbusds.jose.proc.SecurityContext
-import com.nimbusds.jwt.JWTClaimsSet
-import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
-import com.nimbusds.jwt.proc.DefaultJWTProcessor
-import java.text.ParseException
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.exceptions.JWTDecodeException
+import com.auth0.jwt.exceptions.SignatureVerificationException
 
 class Authorizer(
     issuer: String,
-    audience: List<String>,
-    keySelector: JWSKeySelector<SecurityContext>
+    audience: String,
+    algorithm: Algorithm
 ) {
-    private val processor = DefaultJWTProcessor<SecurityContext>().apply {
-        jwtClaimsSetVerifier = DefaultJWTClaimsVerifier(
-            JWTClaimsSet.Builder().issuer(issuer).audience(audience).build(),
-            emptySet()
-        )
-        jwsKeySelector = keySelector
-    }
+    private val verifier = JWT.require(algorithm)
+        .withIssuer(issuer)
+        .withAudience(audience)
+        .build()
 
     fun verify(token: String): String? {
         return try {
-            processor.process(token, null).subject
-        } catch (e: ParseException) {
+            verifier.verify(token).subject
+        } catch (e: JWTDecodeException) {
             null
-        } catch (e: BadJOSEException) {
+        } catch (e: SignatureVerificationException) {
             null
         }
     }

@@ -16,7 +16,8 @@ dependencies {
     implementation("com.zaxxer:HikariCP:6.2.1")
     runtimeOnly("mysql:mysql-connector-java:8.0.33")
     implementation("org.http4k:http4k-config")
-    implementation("com.nimbusds:nimbus-jose-jwt:10.0.2")
+    implementation("com.auth0:java-jwt:4.5.0")
+    implementation("com.auth0:jwks-rsa:0.22.1")
 
     testImplementation("org.http4k:http4k-testing-kotest")
     testImplementation("org.http4k:http4k-testing-approval")

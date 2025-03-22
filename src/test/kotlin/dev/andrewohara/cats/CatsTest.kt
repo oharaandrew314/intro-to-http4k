@@ -1,11 +1,7 @@
 package dev.andrewohara.cats
 
-import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.JWSHeader
-import com.nimbusds.jose.crypto.RSASSASigner
-import com.nimbusds.jose.proc.SingleKeyJWSKeySelector
-import com.nimbusds.jwt.JWTClaimsSet
-import com.nimbusds.jwt.SignedJWT
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import io.kotest.matchers.be
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
@@ -27,7 +23,8 @@ import kotlin.test.assertEquals
 import org.http4k.config.Environment
 import org.http4k.core.*
 import java.security.KeyPairGenerator
-import java.security.PrivateKey
+import java.security.interfaces.RSAPrivateKey
+import java.security.interfaces.RSAPublicKey
 
 private const val ULTIMATE_NUMBER = 42
 private const val ISSUER = "test_idp"
@@ -36,9 +33,10 @@ private const val CLIENT_ID = "test_client"
 @ExtendWith(JsonApprovalTest::class)
 class CatsTest {
 
-    private val keyPair = KeyPairGenerator.getInstance("RSA")
+    private val algorithm = KeyPairGenerator.getInstance("RSA")
         .apply { initialize(2048) }
         .generateKeyPair()
+        .let { Algorithm.RSA256(it.public as RSAPublicKey, it.private as RSAPrivateKey) }
 
     private val service = createApp(
         env = Environment.defaults(
@@ -49,20 +47,14 @@ class CatsTest {
         ),
         clock = Clock.fixed(Instant.parse("2025-03-25T12:00:00Z"), ZoneOffset.UTC),
         random = Random(ULTIMATE_NUMBER),
-        keySelector = SingleKeyJWSKeySelector(JWSAlgorithm.RS256, keyPair.public)
+        algorithm = algorithm,
     )
 
-    fun createToken(userId: String, privateKey: PrivateKey = keyPair.private): String {
-        val header = JWSHeader.Builder(JWSAlgorithm.RS256).build()
-        val claims = JWTClaimsSet.Builder()
-            .issuer(ISSUER)
-            .audience(CLIENT_ID)
-            .subject(userId)
-            .build()
-        return SignedJWT(header, claims)
-            .apply { sign(RSASSASigner(privateKey)) }
-            .serialize()
-    }
+    private fun createToken(userId: String, alg: Algorithm = algorithm) = JWT.create()
+        .withIssuer(ISSUER)
+        .withAudience(CLIENT_ID)
+        .withSubject(userId)
+        .sign(alg)
 
     private val api = service.toApi()
 
@@ -192,12 +184,13 @@ class CatsTest {
 
     @Test
     fun `delete cat - forged token`() {
-        val keyPair = KeyPairGenerator.getInstance("RSA")
+        val newAlg = KeyPairGenerator.getInstance("RSA")
             .apply { initialize(2048) }
             .generateKeyPair()
+            .let { Algorithm.RSA256(it.public as RSAPublicKey, it.private as RSAPrivateKey) }
 
         Request(Method.DELETE, "/v1/cats/c737486a-2988-472a-b580-7bb3e7adfd17")
-            .header("Authorization", "Bearer ${createToken("user1", keyPair.private)}")
+            .header("Authorization", "Bearer ${createToken("user1", newAlg)}")
             .let(api)
             .shouldHaveStatus(Status.UNAUTHORIZED)
     }

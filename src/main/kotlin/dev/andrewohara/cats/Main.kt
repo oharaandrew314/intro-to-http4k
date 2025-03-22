@@ -1,16 +1,9 @@
 package dev.andrewohara.cats
 
 import app.cash.sqldelight.driver.jdbc.asJdbcDriver
-import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.jwk.source.JWKSourceBuilder
-import com.nimbusds.jose.proc.JWSKeySelector
-import com.nimbusds.jose.proc.JWSVerificationKeySelector
-import com.nimbusds.jose.proc.SecurityContext
-import org.http4k.server.JettyLoom
-import org.http4k.server.asServer
-import java.security.SecureRandom
-import java.time.Clock
-import kotlin.random.asKotlinRandom
+import com.auth0.jwk.JwkProviderBuilder
+import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.interfaces.RSAKeyProvider
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.http4k.config.Environment
@@ -19,8 +12,14 @@ import org.http4k.lens.secret
 import org.http4k.lens.string
 import org.http4k.lens.uri
 import org.http4k.routing.routes
-import java.net.URI
+import org.http4k.server.JettyLoom
+import org.http4k.server.asServer
+import java.security.SecureRandom
+import java.security.interfaces.RSAPublicKey
+import java.time.Clock
 import kotlin.random.Random
+import kotlin.random.asKotlinRandom
+
 
 val dbUrl = EnvironmentKey.string().required("DB_URL")
 val dbUser = EnvironmentKey.string().optional("DB_USER")
@@ -34,7 +33,7 @@ fun createApp(
     env: Environment,
     clock: Clock,
     random: Random,
-    keySelector: JWSKeySelector<SecurityContext>? = null
+    algorithm: Algorithm? = null
 ): CatService {
     val dbConfig = HikariConfig().apply {
         jdbcUrl = env[dbUrl]
@@ -49,13 +48,13 @@ fun createApp(
 
     val authorizer = Authorizer(
         issuer = env[issuer],
-        audience = listOf(env[clientId]),
-        keySelector = keySelector ?: JWSVerificationKeySelector(
-            JWSAlgorithm.RS256,
-            JWKSourceBuilder
-                .create<SecurityContext>(URI.create(env[jwkUri].toString()).toURL())
-                .build()
-        )
+        audience = env[clientId],
+        algorithm = algorithm ?: Algorithm.RSA256(object: RSAKeyProvider {
+            private val provider = JwkProviderBuilder(env[jwkUri].toString()).build()
+            override fun getPublicKeyById(id: String) = provider.get(id).publicKey as RSAPublicKey
+            override fun getPrivateKey() = null
+            override fun getPrivateKeyId() = null
+        })
     )
 
     return CatService(

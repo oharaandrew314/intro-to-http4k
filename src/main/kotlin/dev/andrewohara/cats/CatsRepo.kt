@@ -36,7 +36,7 @@ class CatsRepo(private val queries: CatsQueries) {
 
 private fun Cats.toModel() = Cat(
     id = UUID.fromString(id),
-    userId = user_id ?: "<unknown>",
+    userId = user_id,
     name = name,
     createdAt = created_at.toInstant(),
     dateOfBirth = birth_date,
