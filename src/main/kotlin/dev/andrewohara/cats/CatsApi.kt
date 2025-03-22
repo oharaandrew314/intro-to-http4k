@@ -1,10 +1,12 @@
 package dev.andrewohara.cats
 
 import org.http4k.core.*
-import org.http4k.format.Moshi
+import org.http4k.filter.ServerFilters
 import org.http4k.format.Moshi.auto
 import org.http4k.lens.Path
+import org.http4k.lens.RequestKey
 import org.http4k.lens.uuid
+import org.http4k.routing.RoutingHttpHandler
 import org.http4k.routing.bind
 import org.http4k.routing.routes
 
@@ -13,7 +15,9 @@ val catsLens = Body.auto<Array<Cat>>().toLens()
 val catLens = Body.auto<Cat>().toLens()
 val catDataLens = Body.auto<CatData>().toLens()
 
-fun CatService.toApi(): HttpHandler {
+fun CatService.toApi(): RoutingHttpHandler {
+    val userIdLens = RequestKey.required<String>("name")
+
     return routes(
         "/v1/cats" bind Method.GET to {
             val result = listCats().toTypedArray()
@@ -31,15 +35,20 @@ fun CatService.toApi(): HttpHandler {
                     .with(catLens of cat)
             }
         },
-        "v1/cats" bind Method.POST to { request ->
-            val cat = createCat(catDataLens(request))
+        ServerFilters.BearerAuth(userIdLens, authorizer::verify).then(routes(
+            "v1/cats" bind Method.POST to { request ->
+                val userId = userIdLens(request)
+                val cat = createCat(userId, catDataLens(request))
 
-            Response(Status.OK).with(catLens of cat)
-        },
-        "v1/cats/$idLens" bind Method.DELETE to { request ->
-            deleteCat(idLens(request))
-                ?.let { Response(Status.OK).with(catLens of it) }
-                ?: Response(Status.NOT_FOUND)
-        }
+                Response(Status.OK).with(catLens of cat)
+            },
+            "v1/cats/$idLens" bind Method.DELETE to fn@{ request ->
+                val cat = getCat(idLens(request)) ?: return@fn Response(Status.NOT_FOUND)
+                if (cat.userId != userIdLens(request)) return@fn Response(Status.FORBIDDEN)
+                deleteCat(idLens(request))
+
+                Response(Status.OK).with(catLens of cat)
+            }
+        ))
     )
 }

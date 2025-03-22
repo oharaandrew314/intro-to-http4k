@@ -1,12 +1,14 @@
 package dev.andrewohara.cats
 
+import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.JWSHeader
+import com.nimbusds.jose.crypto.RSASSASigner
+import com.nimbusds.jose.proc.SingleKeyJWSKeySelector
+import com.nimbusds.jwt.JWTClaimsSet
+import com.nimbusds.jwt.SignedJWT
 import io.kotest.matchers.be
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Status
-import org.http4k.core.with
 import org.http4k.format.Moshi
 import org.http4k.kotest.shouldHaveBody
 import org.http4k.kotest.shouldHaveStatus
@@ -23,31 +25,56 @@ import java.util.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import org.http4k.config.Environment
+import org.http4k.core.*
+import java.security.KeyPairGenerator
+import java.security.PrivateKey
 
 private const val ULTIMATE_NUMBER = 42
+private const val ISSUER = "test_idp"
+private const val CLIENT_ID = "test_client"
 
 @ExtendWith(JsonApprovalTest::class)
 class CatsTest {
 
+    private val keyPair = KeyPairGenerator.getInstance("RSA")
+        .apply { initialize(2048) }
+        .generateKeyPair()
+
     private val service = createApp(
         env = Environment.defaults(
-            dbUrl of "jdbc:h2:mem:${UUID.randomUUID()};DB_CLOSE_DELAY=-1"
+            dbUrl of "jdbc:h2:mem:${UUID.randomUUID()};DB_CLOSE_DELAY=-1",
+            issuer of ISSUER,
+            clientId of CLIENT_ID,
+            redirectUri of Uri.of("fake.test")
         ),
         clock = Clock.fixed(Instant.parse("2025-03-25T12:00:00Z"), ZoneOffset.UTC),
-        random = Random(ULTIMATE_NUMBER)
+        random = Random(ULTIMATE_NUMBER),
+        keySelector = SingleKeyJWSKeySelector(JWSAlgorithm.RS256, keyPair.public)
     )
+
+    fun createToken(userId: String, privateKey: PrivateKey = keyPair.private): String {
+        val header = JWSHeader.Builder(JWSAlgorithm.RS256).build()
+        val claims = JWTClaimsSet.Builder()
+            .issuer(ISSUER)
+            .audience(CLIENT_ID)
+            .subject(userId)
+            .build()
+        return SignedJWT(header, claims)
+            .apply { sign(RSASSASigner(privateKey)) }
+            .serialize()
+    }
 
     private val api = service.toApi()
 
     @Test
     fun `list cats`() {
-        val cat1 = service.createCat(CatData(
+        val cat1 = service.createCat("user1", CatData(
             name = "Kratos",
             dateOfBirth = LocalDate.of(2022, 9, 22),
             breed = "American Shorthair",
             colour = "Lynx Point Tabby"
         ))
-        val cat2 = service.createCat(CatData(
+        val cat2 = service.createCat("user1", CatData(
             name = "Athena",
             dateOfBirth = LocalDate.of(2022, 9, 22),
             breed = "American Shorthair",
@@ -76,13 +103,13 @@ class CatsTest {
 
     @Test
     fun `get cat - found`() {
-        val cat1 = service.createCat(CatData(
+        val cat1 = service.createCat("user1", CatData(
             name = "Kratos",
             dateOfBirth = LocalDate.of(2022, 9, 22),
             breed = "American Shorthair",
             colour = "Lynx Point Tabby"
         ))
-        service.createCat(CatData(
+        service.createCat("user1", CatData(
             name = "Athena",
             dateOfBirth = LocalDate.of(2022, 9, 22),
             breed = "American Shorthair",
@@ -97,13 +124,28 @@ class CatsTest {
     }
 
     @Test
+    fun `create cat - unauthorized`() {
+        Request(Method.POST, "/v1/cats")
+            .with(catDataLens of CatData(
+                name = "Toggles",
+                dateOfBirth = LocalDate.of(2004, 6, 1),
+                breed = "American Shorthair",
+                colour = "Brown Tabby"
+            ))
+            .let(api)
+            .shouldHaveStatus(Status.UNAUTHORIZED)
+    }
+
+    @Test
     fun `create cat`(approver: Approver) {
-        val response = Request(Method.POST, "/v1/cats").with(catDataLens of CatData(
-            name = "Toggles",
-            dateOfBirth = LocalDate.of(2004, 6, 1),
-            breed = "American Shorthair",
-            colour = "Brown Tabby"
-        )).let(api)
+        val response = Request(Method.POST, "/v1/cats")
+            .header("Authorization", "Bearer ${createToken("user1")}")
+            .with(catDataLens of CatData(
+                name = "Toggles",
+                dateOfBirth = LocalDate.of(2004, 6, 1),
+                breed = "American Shorthair",
+                colour = "Brown Tabby"
+            )).let(api)
 
         approver.assertApproved(response, Status.OK)
 
@@ -111,21 +153,64 @@ class CatsTest {
     }
 
     @Test
+    fun `delete cat - unauthorized`() {
+        Request(Method.DELETE, "/v1/cats/c737486a-2988-472a-b580-7bb3e7adfd17")
+            .let(api)
+            .shouldHaveStatus(Status.UNAUTHORIZED)
+    }
+
+    @Test
     fun `delete cat - not found`() {
         Request(Method.DELETE, "/v1/cats/c737486a-2988-472a-b580-7bb3e7adfd17")
+            .header("Authorization", "Bearer ${createToken("user1")}")
             .let(api)
             .shouldHaveStatus(Status.NOT_FOUND)
     }
 
     @Test
-    fun `delete cat - success`(approver: Approver) {
-        val cat1 = service.createCat(CatData(
+    fun `delete cat - forbidden`() {
+        val cat1 = service.createCat("user1", CatData(
             name = "Kratos",
             dateOfBirth = LocalDate.of(2022, 9, 22),
             breed = "American Shorthair",
             colour = "Lynx Point Tabby"
         ))
-        val cat2 = service.createCat(CatData(
+
+        Request(Method.DELETE, "/v1/cats/${cat1.id}")
+            .header("Authorization", "Bearer ${createToken("user2")}")
+            .let(api)
+            .shouldHaveStatus(Status.FORBIDDEN)
+    }
+
+    @Test
+    fun `delete cat - invalid token`() {
+        Request(Method.DELETE, "/v1/cats/c737486a-2988-472a-b580-7bb3e7adfd17")
+            .header("Authorization", "Bearer lol")
+            .let(api)
+            .shouldHaveStatus(Status.UNAUTHORIZED)
+    }
+
+    @Test
+    fun `delete cat - forged token`() {
+        val keyPair = KeyPairGenerator.getInstance("RSA")
+            .apply { initialize(2048) }
+            .generateKeyPair()
+
+        Request(Method.DELETE, "/v1/cats/c737486a-2988-472a-b580-7bb3e7adfd17")
+            .header("Authorization", "Bearer ${createToken("user1", keyPair.private)}")
+            .let(api)
+            .shouldHaveStatus(Status.UNAUTHORIZED)
+    }
+
+    @Test
+    fun `delete cat - success`(approver: Approver) {
+        val cat1 = service.createCat("user1", CatData(
+            name = "Kratos",
+            dateOfBirth = LocalDate.of(2022, 9, 22),
+            breed = "American Shorthair",
+            colour = "Lynx Point Tabby"
+        ))
+        val cat2 = service.createCat("user1", CatData(
             name = "Athena",
             dateOfBirth = LocalDate.of(2022, 9, 22),
             breed = "American Shorthair",
@@ -133,6 +218,7 @@ class CatsTest {
         ))
 
         Request(Method.DELETE, "/v1/cats/${cat2.id}")
+            .header("Authorization", "Bearer ${createToken("user1")}")
             .let(api)
             .also { approver.assertApproved(it, Status.OK) }
 

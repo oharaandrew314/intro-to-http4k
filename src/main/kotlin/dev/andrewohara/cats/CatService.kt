@@ -9,7 +9,8 @@ private const val UUID_LENGTH = 40
 class CatService(
     private val cats: CatsRepo,
     private val clock: Clock,
-    private val random: Random
+    private val random: Random,
+    val authorizer: Authorizer
 ) {
 
     fun getCat(id: UUID): Cat? {
@@ -26,9 +27,10 @@ class CatService(
         return cat
     }
 
-    fun createCat(data: CatData): Cat {
+    fun createCat(userId: String, data: CatData): Cat {
         val cat = Cat(
             id = UUID.nameUUIDFromBytes(random.nextBytes(UUID_LENGTH)),
+            userId = userId,
             createdAt = clock.instant(),
             name = data.name,
             dateOfBirth = data.dateOfBirth,
