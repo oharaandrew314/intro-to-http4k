@@ -6,6 +6,7 @@ import java.util.UUID
 
 data class Cat(
     val id: UUID,
+    val userId: String,
     val createdAt: Instant,
     val name: String,
     val dateOfBirth: LocalDate,

@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS cats (
     id CHAR(36) PRIMARY KEY NOT NULL,
+    user_id VARCHAR(128) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     name VARCHAR(128) NOT NULL,
     birth_date DATE NOT NULL,
@@ -17,4 +18,4 @@ deleteCat:
 DELETE FROM cats WHERE id = ?;
 
 createCat:
-INSERT INTO cats VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO cats VALUES (?, ?, ?, ?, ?, ?, ?);
