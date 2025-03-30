@@ -10,10 +10,12 @@ import com.zaxxer.hikari.HikariDataSource
 import org.http4k.base64DecodedArray
 import org.http4k.config.Environment
 import org.http4k.config.EnvironmentKey
+import org.http4k.contract.ui.swaggerUiLite
 import org.http4k.lens.base64
 import org.http4k.lens.secret
 import org.http4k.lens.string
 import org.http4k.lens.uri
+import org.http4k.routing.bind
 import org.http4k.routing.routes
 import org.http4k.server.JettyLoom
 import org.http4k.server.asServer
@@ -95,12 +97,17 @@ fun main() {
         clock = Clock.systemUTC()
     )
 
-    val webApp = webApp(
+    val webApp = "ui" bind webApp(
         clientId = env[audience],
         redirectUri = env[redirectUri]
     )
 
-    routes(service.toApi(), webApp)
+    val swaggerUi = swaggerUiLite {
+        pageTitle = "Cats API Swagger UI"
+        url = "openapi.json"
+    }
+
+    routes(service.toApi(), webApp, swaggerUi)
         .asServer(JettyLoom(8000))
         .start()
 }

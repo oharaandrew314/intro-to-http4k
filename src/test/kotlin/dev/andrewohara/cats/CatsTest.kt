@@ -209,4 +209,11 @@ class CatsTest {
 
         service.listCats().shouldContainExactly(cat1)
     }
+
+    @Test
+    fun `generate openapi spec`(approver: Approver) {
+        Request(Method.GET, "/openapi.json")
+            .let(api)
+            .also { approver.assertApproved(it, Status.OK) }
+    }
 }

@@ -1,0 +1,338 @@
+{
+  "info": {
+    "title": "Cats API",
+    "version": "v1"
+  },
+  "tags": [
+  ],
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/v1/cats": {
+      "get": {
+        "summary": "List Cats",
+        "tags": [
+          ""
+        ],
+        "parameters": [
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "id": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+                    "userId": "user1",
+                    "createdAt": "2025-03-30T12:00:00Z",
+                    "name": "Kratos",
+                    "dateOfBirth": "2022-09-04",
+                    "breed": "American Shorthair",
+                    "colour": "Lynx Point Tabby"
+                  }
+                ],
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Cat"
+                  },
+                  "example": [
+                    {
+                      "id": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+                      "userId": "user1",
+                      "createdAt": "2025-03-30T12:00:00Z",
+                      "name": "Kratos",
+                      "dateOfBirth": "2022-09-04",
+                      "breed": "American Shorthair",
+                      "colour": "Lynx Point Tabby"
+                    }
+                  ],
+                  "type": "array",
+                  "nullable": false
+                }
+              }
+            }
+          }
+        },
+        "security": [
+        ],
+        "operationId": "v1ListCats",
+        "deprecated": false
+      },
+      "post": {
+        "summary": "Create Cat",
+        "tags": [
+          ""
+        ],
+        "parameters": [
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "Kratos",
+                "dateOfBirth": "2022-09-04",
+                "breed": "American Shorthair",
+                "colour": "Lynx Point Tabby"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CatData"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "id": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+                  "userId": "user1",
+                  "createdAt": "2025-03-30T12:00:00Z",
+                  "name": "Kratos",
+                  "dateOfBirth": "2022-09-04",
+                  "breed": "American Shorthair",
+                  "colour": "Lynx Point Tabby"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Cat"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "bearer token required",
+            "content": {
+            }
+          }
+        },
+        "security": [
+          {
+            "googleAuth": [
+            ]
+          }
+        ],
+        "operationId": "v1CreateCat",
+        "deprecated": false
+      }
+    },
+    "/v1/cats/{cat_id}": {
+      "delete": {
+        "summary": "Delete Cat",
+        "tags": [
+          ""
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "cat_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "id": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+                  "userId": "user1",
+                  "createdAt": "2025-03-30T12:00:00Z",
+                  "name": "Kratos",
+                  "dateOfBirth": "2022-09-04",
+                  "breed": "American Shorthair",
+                  "colour": "Lynx Point Tabby"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Cat"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "bearer token required",
+            "content": {
+            }
+          },
+          "403": {
+            "description": "don't have permission to delete this cat",
+            "content": {
+            }
+          }
+        },
+        "security": [
+          {
+            "googleAuth": [
+            ]
+          }
+        ],
+        "operationId": "v1DeleteCat",
+        "deprecated": false
+      },
+      "get": {
+        "summary": "Get Cat",
+        "tags": [
+          ""
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "cat_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "id": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+                  "userId": "user1",
+                  "createdAt": "2025-03-30T12:00:00Z",
+                  "name": "Kratos",
+                  "dateOfBirth": "2022-09-04",
+                  "breed": "American Shorthair",
+                  "colour": "Lynx Point Tabby"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Cat"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "cat not found",
+            "content": {
+            }
+          }
+        },
+        "security": [
+        ],
+        "operationId": "v1GetCat",
+        "deprecated": false
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Cat": {
+        "properties": {
+          "id": {
+            "example": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+            "format": "uuid",
+            "type": "string",
+            "nullable": false
+          },
+          "userId": {
+            "example": "user1",
+            "type": "string",
+            "nullable": false
+          },
+          "createdAt": {
+            "example": "2025-03-30T12:00:00Z",
+            "format": "date-time",
+            "type": "string",
+            "nullable": false
+          },
+          "name": {
+            "example": "Kratos",
+            "type": "string",
+            "nullable": false
+          },
+          "dateOfBirth": {
+            "example": "2022-09-04",
+            "format": "date",
+            "type": "string",
+            "nullable": false
+          },
+          "breed": {
+            "example": "American Shorthair",
+            "type": "string",
+            "nullable": false
+          },
+          "colour": {
+            "example": "Lynx Point Tabby",
+            "type": "string",
+            "nullable": false
+          }
+        },
+        "example": {
+          "id": "8614ebfa-5ad5-4a9d-8080-21dfaf950046",
+          "userId": "user1",
+          "createdAt": "2025-03-30T12:00:00Z",
+          "name": "Kratos",
+          "dateOfBirth": "2022-09-04",
+          "breed": "American Shorthair",
+          "colour": "Lynx Point Tabby"
+        },
+        "type": "object",
+        "required": [
+          "breed",
+          "colour",
+          "createdAt",
+          "dateOfBirth",
+          "id",
+          "name",
+          "userId"
+        ]
+      },
+      "CatData": {
+        "properties": {
+          "name": {
+            "example": "Kratos",
+            "type": "string",
+            "nullable": false
+          },
+          "dateOfBirth": {
+            "example": "2022-09-04",
+            "format": "date",
+            "type": "string",
+            "nullable": false
+          },
+          "breed": {
+            "example": "American Shorthair",
+            "type": "string",
+            "nullable": false
+          },
+          "colour": {
+            "example": "Lynx Point Tabby",
+            "type": "string",
+            "nullable": false
+          }
+        },
+        "example": {
+          "name": "Kratos",
+          "dateOfBirth": "2022-09-04",
+          "breed": "American Shorthair",
+          "colour": "Lynx Point Tabby"
+        },
+        "type": "object",
+        "required": [
+          "breed",
+          "colour",
+          "dateOfBirth",
+          "name"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "googleAuth": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "openapi": "3.0.0"
+}
