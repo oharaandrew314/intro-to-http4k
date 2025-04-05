@@ -110,4 +110,5 @@ fun main() {
     routes(service.toApi(), webApp, swaggerUi)
         .asServer(JettyLoom(8000))
         .start()
+        .also { println("Running on http://localhost:${it.port()}") }
 }
