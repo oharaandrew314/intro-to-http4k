@@ -1,6 +1,8 @@
 plugins {
     kotlin("jvm") version "2.1.10"
     id("app.cash.sqldelight") version "2.0.2"
+    application
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 repositories {
@@ -41,4 +43,8 @@ sqldelight {
             dialect("app.cash.sqldelight:mysql-dialect:2.0.2")
         }
     }
+}
+
+application {
+    mainClass = "dev.andrewohara.cats.MainKt"
 }

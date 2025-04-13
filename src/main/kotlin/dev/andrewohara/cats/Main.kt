@@ -48,6 +48,7 @@ fun createApp(
         jdbcUrl = env[dbUrl]
         username = env[dbUser]
         password = env[dbPass]?.use { it }
+        maximumPoolSize = 2
     }
 
     val database = HikariDataSource(dbConfig)
@@ -103,7 +104,7 @@ fun main() {
     )
 
     val swaggerUi = swaggerUiLite {
-        pageTitle = "Cats API Swagger UI"
+        pageTitle = "Cats API - Swagger UI"
         url = "openapi.json"
     }
 
