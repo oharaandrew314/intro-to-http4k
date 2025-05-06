@@ -1,0 +1,119 @@
+Parameters:
+  Audience:
+    Type: String
+  DbCredentialsSecretArn:
+    Type: String
+  Issuer:
+    Type: String
+  JwksUri:
+    Type: String
+  HostName:
+    Type: String
+  DbHost:
+    Type: String
+  Image:
+    Type: String
+  ClusterName:
+    Type: String
+  SecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  ListenerArn:
+    Type: String
+
+Resources:
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /openapi.json
+      Port: 8000
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref VpcId
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values: [ !Ref HostName ]
+      ListenerArn: !Ref ListenerArn
+      Priority: 10
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: AUDIENCE
+              Value: !Ref Audience
+            - Name: ISSUER
+              Value: !Ref Issuer
+            - Name: JWKS_URI
+              Value: !Ref JwksUri
+            - Name: REDIRECT_URI
+              Value: !Sub https://${HostName}/ui/redirect
+            - Name: DB_URL
+              Value: !Sub jdbc:mysql://${DB_HOST}:3306/cats
+          Image: !Ref Image
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-create-group: true
+              awslogs-group: /ecs/cats-prod
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+              max-buffer-size: 25m
+              mode: non-blocking
+          Name: app
+          PortMappings:
+            - AppProtocol: http
+              ContainerPort: 8000
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: !Sub "${DbCredentialsSecretArn}:username::"
+            - Name: DB_PASS
+              ValueFrom: !Sub "${DbCredentialsSecretArn}:password::"
+      Cpu: 256
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [ FARGATE ]
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ClusterName
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerPort: 8000
+          TargetGroupArn: !Ref TargetGroup
+          ContainerName: app
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups: !Ref SecurityGroupIds
+          Subnets: !Ref SubnetIds
+      TaskDefinition: !Ref TaskDefinition
